@@ -1,12 +1,13 @@
 # astree
 
-Dependency-free HTML tree parsing, CSS selector querying, and structured record extraction powered by Python's `html.parser`.
+Shared structural traversal with specialized HTML, JSON, Markdown, Python, and JavaScript adapters.
 
 Requires Python 3.14+.
 
 ## Highlights
 
-- **Dependency-Free**: Built strictly on Python standard library primitives.
+- **Shared Traversal**: Use `walk`, `ancestors`, `descendants`, and `transform` where the node model supports them.
+- **Specialized Adapters**: Preserve DOM, value-tree, source-span, and language-AST semantics instead of forcing one node type.
 - **Full DOM Navigation**: Navigable `Document` and `Node` tree with parent/child links and attributes.
 - **CSS Selectors**: Fast CSS selector queries (`select`, `select_one`).
 - **Streaming Collectors**: Single-pass `LinkCollector` and `TextCollector` with bounds protection.
@@ -25,6 +26,12 @@ For development:
 git clone https://github.com/wispsy/astree.git
 cd astree
 uv sync
+```
+
+JavaScript support is optional:
+
+```sh
+uv sync --extra javascript
 ```
 
 ## Quick Start
@@ -57,6 +64,26 @@ assert link is not None
 assert link.attrs['href'] == '/post/42'
 assert card.get_text(' ', strip=True) == 'Headline Read story'
 ```
+
+### Structural Adapters
+
+```python
+from astree import ancestors, transform, walk
+from astree.json import parse as parse_json
+from astree.python import parse as parse_python
+
+json_tree = parse_json('{"count": 2}')
+json_tree = transform(json_tree, lambda node: node.value + 1
+                      if node.kind == 'number' else node)
+assert json_tree.value == {'count': 3}
+
+python_tree = parse_python('answer = 42')
+assert list(walk(python_tree))
+```
+
+`astree.markdown.parse` returns a source-span tree for headings, paragraphs,
+lists, and fenced code blocks. `astree.javascript.parse` returns a tree-sitter
+JavaScript node and requires the optional extra.
 
 ### Structured Record Extraction
 
