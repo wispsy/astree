@@ -1,10 +1,22 @@
 # astree API Reference
 
-`astree` provides dependency-free HTML tree parsing, CSS selector queries, streaming collectors, and structured record extraction powered by Python's standard library `html.parser.HTMLParser`. Python 3.14+ is required.
+`astree` provides shared structural traversal plus specialized HTML, JSON,
+Markdown, Python, and optional JavaScript adapters. Python 3.14+ is required.
 
----
+## 1. Shared Structural Protocol
 
-## 1. Document & Node Model
+The top-level helpers are intentionally small and do not require one universal
+node representation:
+
+- `walk(node, include_root=True)`: depth-first preorder traversal.
+- `descendants(node)`: traversal excluding the receiver.
+- `ancestors(node, include_self=False)`: nearest parent first.
+- `transform(node, visit)`: post-order transformation for supported adapters.
+
+HTML nodes expose `children` and `parent`; Python nodes are standard `ast.AST`
+instances; JSON and Markdown nodes provide immutable adapter-specific models.
+
+## 2. Document & Node Model
 
 ### `Document`
 
@@ -25,16 +37,41 @@ Constructed via:
 ### `Node`
 
 Represents a DOM node.
-- `kind: Literal['root', 'element', 'text', 'comment', 'decl', 'pi']`
+- `kind`: One of `document`, `element`, `text`, `comment`, `declaration`, or `processing_instruction`.
 - `tag: str | None`: Tag name for elements (e.g. `'div'`, `'a'`).
-- `attrs: Mapping[str, str]`: Read-only attributes dictionary.
+- `attrs: Mapping[str, str | None]`: Read-only attributes dictionary.
 - `parent: Node | None`: Parent node.
 - `children: tuple[Node, ...]`: Direct child nodes.
-- `data: str | None`: Text content for text/comment/decl nodes.
+- `data: str`: Text content for text/comment/declaration nodes.
 
----
+## 3. JSON, Markdown, Python, and JavaScript
 
-## 2. Streaming Parsers & Collectors
+### JSON
+
+`astree.json.parse` returns a `JsonNode` whose `value`, `kind`, `key`, `parent`,
+and `children` retain JSON's object/array/value semantics. `dumps` serializes
+the root value.
+
+### Markdown
+
+`astree.markdown.parse` returns a `MarkdownNode` tree for headings, paragraphs,
+lists, and fenced code blocks. Each node includes `start_line` and `end_line`
+source spans; it is deliberately not a full CommonMark implementation.
+
+### Python
+
+`astree.python.parse` is `ast.parse`, so callers retain the complete standard
+library AST API and can use `ast.walk`, `ast.NodeTransformer`, or astree's
+shared helpers.
+
+### JavaScript
+
+`astree.javascript.parse` uses tree-sitter and is enabled with
+`pip install astree[javascript]`. It returns the parser's native node model.
+The adapter does not normalize grammar-specific nodes or provide a source
+rewriter; callers should use tree-sitter's byte ranges and node fields.
+
+## 4. Streaming Parsers & Collectors
 
 ### `DocumentParser`
 
@@ -68,9 +105,7 @@ collector.close()
 print(collector.text)
 ```
 
----
-
-## 3. Structured Record Extraction
+## 5. Structured Record Extraction
 
 Extracts typed dictionaries or dataclass records from HTML elements:
 
